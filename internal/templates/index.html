@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FILE SYNC - 초경량 파일 동기화</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    /* 커스텀 스크롤바 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #18181b;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #3f3f46;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #52525b;
+    }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col font-sans text-sm selection:bg-violet-500 selection:text-white">
+
+  <!-- 헤더 바 -->
+  <header class="h-12 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between px-4 sticky top-0 z-50 backdrop-blur">
+    <div class="flex items-center gap-2">
+      <div class="w-2.5 h-2.5 rounded-full bg-violet-500 animate-pulse"></div>
+      <span class="font-bold tracking-wider text-base text-zinc-100">FILE SYNC</span>
+      <span class="text-xs px-2 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">Wails v2 Desktop</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <!-- 실시간 Watch 토글 -->
+      <label class="flex items-center gap-2 cursor-pointer text-xs text-zinc-400 hover:text-zinc-200">
+        <input type="checkbox" id="watchToggle" class="sr-only peer" onchange="toggleWatchDaemon(this.checked)">
+        <span class="text-xs">실시간 감시</span>
+        <div class="w-8 h-4 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-violet-600 relative"></div>
+      </label>
+      <div class="h-4 w-px bg-zinc-800"></div>
+      <button onclick="hideToTray()" class="text-xs px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition">
+        트레이 최소화
+      </button>
+    </div>
+  </header>
+
+  <!-- 메인 레이아웃 -->
+  <main class="flex-1 flex overflow-hidden">
+
+    <!-- 좌측: 프리셋 관리 사이드바 -->
+    <aside class="w-64 border-r border-zinc-800 bg-zinc-900/30 flex flex-col">
+      <div class="p-3 border-b border-zinc-800 flex items-center justify-between">
+        <span class="text-xs font-semibold uppercase tracking-wider text-zinc-400">동기화 프리셋</span>
+        <button onclick="createNewPreset()" class="text-xs px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition">
+          + 신규
+        </button>
+      </div>
+      <div id="presetList" class="flex-1 overflow-y-auto p-2 space-y-1">
+        <!-- 프리셋 아이템 동적 주입 -->
+      </div>
+    </aside>
+
+    <!-- 중앙/우측: 프리셋 상세 설정 및 동기화 조종석 -->
+    <section class="flex-1 flex flex-col overflow-y-auto p-5 gap-5">
+
+      <!-- 프리셋 헤더 정보 -->
+      <div class="flex items-center justify-between bg-zinc-900/60 p-4 rounded-xl border border-zinc-800/80 shadow-sm">
+        <div class="flex-1 mr-4">
+          <input type="text" id="presetNameInput" oninput="handlePresetNameInput(this.value)" onchange="updatePresetName(this.value)" onkeydown="if(event.key==='Enter') this.blur()"
+                 class="bg-transparent text-lg font-bold text-zinc-100 border-b border-transparent hover:border-zinc-700 focus:border-violet-500 focus:outline-none w-full py-0.5 transition" 
+                 placeholder="프리셋 이름을 입력하세요">
+          <p class="text-xs text-zinc-400 mt-1" id="presetSubtext">소스 파일/폴더와 대상 폴더를 구성하세요.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="deleteCurrentPreset()" class="text-xs px-3 py-1.5 rounded bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-900/50 transition">
+            프리셋 삭제
+          </button>
+        </div>
+      </div>
+
+      <!-- 소스 및 대상 상하 수직(Full-Width) 스택 카드 -->
+      <div class="flex flex-col gap-3.5">
+
+        <!-- 1단 (상단): 소스 (Sources) 카드 -->
+        <div class="w-full bg-zinc-900/40 p-3.5 rounded-xl border border-zinc-800 flex flex-col">
+          <div class="flex items-center justify-between mb-2.5">
+            <div class="flex items-center gap-1.5">
+              <span class="font-semibold text-zinc-200">1. 동기화 소스 (Sources)</span>
+              <span id="sourceCountBadge" class="text-xs px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400">0</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button onclick="addSourceFiles()" class="text-xs px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-violet-400 hover:text-violet-300 hover:border-violet-500/50 border border-zinc-700 transition">
+                + 파일 추가
+              </button>
+              <button onclick="addSourceDirectory()" class="text-xs px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-violet-400 hover:text-violet-300 hover:border-violet-500/50 border border-zinc-700 transition">
+                + 폴더 추가
+              </button>
+            </div>
+          </div>
+          <!-- 소스 목록 컨테이너 (전체 폭 세로 목록) -->
+          <div id="sourcesContainer" class="max-h-[150px] overflow-y-auto space-y-1.5 p-2 bg-zinc-950/60 rounded-lg border border-zinc-800/60 min-h-[85px]">
+            <span class="text-xs text-zinc-500 m-auto block text-center py-6 select-none">지정된 소스가 없습니다. 위 버튼을 눌러 추가하세요.</span>
+          </div>
+        </div>
+
+        <!-- 2단 (하단): 대상 (Targets) 카드 -->
+        <div class="w-full bg-zinc-900/40 p-3.5 rounded-xl border border-zinc-800 flex flex-col">
+          <div class="flex items-center justify-between mb-2.5">
+            <div class="flex items-center gap-1.5">
+              <span class="font-semibold text-zinc-200">2. 동기화 대상 (Targets)</span>
+              <span id="targetCountBadge" class="text-xs px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400">0</span>
+            </div>
+            <button onclick="addTargetDirectory()" class="text-xs px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-violet-400 hover:text-violet-300 hover:border-violet-500/50 border border-zinc-700 transition">
+              + 대상 폴더 추가
+            </button>
+          </div>
+          <!-- 대상 폴더 목록 컨테이너 (전체 폭 세로 목록) -->
+          <div id="targetsContainer" class="max-h-[130px] overflow-y-auto space-y-1.5 p-2 bg-zinc-950/60 rounded-lg border border-zinc-800/60 min-h-[75px]">
+            <span class="text-xs text-zinc-500 m-auto block text-center py-5 select-none">지정된 대상 폴더가 없습니다.</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 동기화 실행 대형 버튼 및 진행 바 -->
+      <div class="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800 flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col">
+            <span class="font-semibold text-zinc-200">원클릭 전체 동기화</span>
+            <span class="text-xs text-zinc-400" id="syncStatusSummary">대기 중</span>
+          </div>
+          <button id="runSyncBtn" onclick="runSync()" class="px-6 py-2.5 rounded-lg bg-gradient-to-r from-violet-600 via-indigo-600 to-violet-600 hover:from-violet-500 hover:to-indigo-500 active:from-violet-700 active:to-indigo-700 text-white font-bold tracking-wide shadow-lg shadow-violet-600/25 border border-violet-400/20 transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            전체 동기화 실행
+          </button>
+        </div>
+        <!-- 프로그레스 게이지 -->
+        <div class="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
+          <div id="syncProgressBar" class="bg-gradient-to-r from-violet-500 to-indigo-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- 실시간 타자기식 콘솔 로그 창 -->
+      <div class="flex-1 bg-zinc-950 rounded-xl border border-zinc-800/90 flex flex-col min-h-[160px] overflow-hidden">
+        <div class="h-8 border-b border-zinc-800 px-3 bg-zinc-900/60 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+            <span class="text-xs font-mono font-medium text-zinc-400">실시간 동기화 콘솔 (Realtime Logs)</span>
+          </div>
+          <button onclick="clearLogs()" class="text-[11px] text-zinc-500 hover:text-zinc-300 transition">로그 지우기</button>
+        </div>
+        <div id="logConsole" class="flex-1 p-3 font-mono text-xs overflow-y-auto space-y-1 text-zinc-300">
+          <div class="text-zinc-600">[SYSTEM] file_sync 엔진 대기 완료. 동기화를 실행하세요.</div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- 프론트엔드 조율 스크립트 -->
+  <script src="./ui.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

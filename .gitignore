@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Go / Wails
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+build/bin/
+# frontend build outputs
+frontend/dist/*
+!frontend/dist/index.html
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+
+# Temporary / Tokens
+*.tmp
+*.log
+.agents/.deploy_token
+.agents/.change_token
+.agents/.baseline_hashes.json
+
+# Workspace Configurations & Private Docs
+AGENTS.md
+agents.md
+docs/
+templates/
+.agents/
+일일_작업일지*.md
+자주쓰는 터미널 명령어.md
+
+# Tests
+tests/

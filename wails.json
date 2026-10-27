@@ -1,0 +1,9 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "file_sync",
+  "outputfilename": "file_sync",
+  "frontend:dir": "internal/templates",
+  "author": {
+    "name": "developer"
+  }
+}

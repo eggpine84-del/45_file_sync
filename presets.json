@@ -1,0 +1,16 @@
+{
+  "active_preset_id": "preset-1793072626252",
+  "presets": [
+    {
+      "id": "preset-1793072626252",
+      "name": "2에서 46 굿",
+      "sources": [
+        "C:\\Users\\l3afa\\Desktop\\coding\\45_file_sync\\docs\\boilerplates_go"
+      ],
+      "targets": [
+        "C:\\Users\\l3afa\\Desktop\\coding\\2_hook\\docs\\boilerplates_go"
+      ],
+      "auto_watch": true
+    }
+  ]
+}
